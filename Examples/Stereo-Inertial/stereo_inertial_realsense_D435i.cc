@@ -57,7 +57,7 @@ static rs2_option get_sensor_option(const rs2::sensor& sensor)
     // Sensors usually have several options to control their properties
     //  such as Exposure, Brightness etc.
 
-    std::cout << "Sensor supports the following options:\n" << std::endl;
+    std::cout << "Sensor " << sensor.get_info(RS2_CAMERA_INFO_NAME) << " supports the following options:\n" << std::endl;
 
     // The following loop shows how to iterate over all available options
     // Starting from 0 until RS2_OPTION_COUNT (exclusive)
@@ -92,6 +92,15 @@ static rs2_option get_sensor_option(const rs2::sensor& sensor)
 
     uint32_t selected_sensor_option = 0;
     return static_cast<rs2_option>(selected_sensor_option);
+}
+
+void rs2_sensor_set_option_safe(const rs2::sensor& sensor, rs2_option option, float value)
+{
+    if (sensor.supports(option)) {
+        sensor.set_option(option, value);
+    } else {
+        std::cout << "Warning: " << option << " is not supported by this sensor! Skipping..." << std::endl;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -129,31 +138,58 @@ int main(int argc, char **argv) {
         return 0;
     }
     else
+    {
         selected_device = devices[0];
+        std::cout << "Found " << devices.size() << " RealSense device(s)!" << std::endl 
+                  << "    Using RealSense device with description: " << selected_device.get_description() << std::endl;
+    }
 
     std::vector<rs2::sensor> sensors = selected_device.query_sensors();
+
     int index = 0;
     // We can now iterate the sensors and print their names
-    for (rs2::sensor sensor : sensors)
+    for (rs2::sensor sensor : sensors) {
+        get_sensor_option(sensor);
+
         if (sensor.supports(RS2_CAMERA_INFO_NAME)) {
             ++index;
+
             if (index == 1) {
-                sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 1);
-                sensor.set_option(RS2_OPTION_AUTO_EXPOSURE_LIMIT,5000);
-                sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0); // switch off emitter
+                // for (auto rs2_option : sensor.get_supported_options()) {
+                //     std::cout << "  " << rs2_option << " : " << sensor.get_option_description(rs2_option) << std::endl;
+                // }
+
+                // auto sensor_options = sensor.get_supported_options();
+
+                // if (sensor.supports(RS2_OPTION_ENABLE_AUTO_EXPOSURE))
+                //     sensor.set_option(RS2_OPTION_ENABLE_AUTO_EXPOSURE, 1);
+                
+                // if (sensor.supports(RS2_OPTION_AUTO_EXPOSURE_LIMIT))
+                //     sensor.set_option(RS2_OPTION_AUTO_EXPOSURE_LIMIT, 5000);
+                
+                // if (sensor.supports(RS2_OPTION_EMITTER_ENABLED))
+                //     sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0); // switch off emitter
+
+                rs2_sensor_set_option_safe(sensor, RS2_OPTION_ENABLE_AUTO_EXPOSURE, 1);
+                rs2_sensor_set_option_safe(sensor, RS2_OPTION_AUTO_EXPOSURE_LIMIT, 5000);
+                rs2_sensor_set_option_safe(sensor, RS2_OPTION_EMITTER_ENABLED, 0);
+
             }
             // std::cout << "  " << index << " : " << sensor.get_info(RS2_CAMERA_INFO_NAME) << std::endl;
-            get_sensor_option(sensor);
+            
             if (index == 2){
                 // RGB camera (not used here...)
-                sensor.set_option(RS2_OPTION_EXPOSURE,100.f);
+                // sensor.set_option(RS2_OPTION_EXPOSURE,100.f);
+                rs2_sensor_set_option_safe(sensor, RS2_OPTION_EXPOSURE, 100.f);
             }
 
             if (index == 3){
-                sensor.set_option(RS2_OPTION_ENABLE_MOTION_CORRECTION,0);
+                // sensor.set_option(RS2_OPTION_ENABLE_MOTION_CORRECTION,0);
+                rs2_sensor_set_option_safe(sensor, RS2_OPTION_ENABLE_MOTION_CORRECTION, 0);
             }
 
         }
+    }
 
     // Declare RealSense pipeline, encapsulating the actual device and sensors
     rs2::pipeline pipe;
